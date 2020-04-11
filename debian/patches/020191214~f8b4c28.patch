@@ -1,0 +1,143 @@
+Description: php: Fix memory corruption for uwsgi_cache_*
+ Ah the joys of variadic arguments in C...
+ .
+ So, when using zend_parse_parameters(),
+ PHP internally loops through the type specifiers
+ and accordingly uses va_arg() to get the corresponding argument.
+ .
+ Since the arguments are expected to be pointers
+ to the corresponding values,
+ the size of them *does* matter, because PHP simply writes
+ to the corresponding address with a size of size_t.
+ .
+ If we for example pass a pointer to a 32bit integer
+ and PHP writes 64 bits,
+ we have an overflow of 4 bytes.
+ .
+ From README.PARAMETER_PARSING_API in the PHP source tree:
+ 
+ > Please note that since version 7 PHP uses zend_long as integer type
+ > and zend_string with size_t as length,
+ > so make sure you pass zend_longs to "l" and size_t to strings length
+ > (i.e. for "s" you need to pass char * and size_t),
+ > not the other way round!
+ >
+ > Both mistakes might cause memory corruptions and segfaults:
+ > 1)
+ >   char *str;
+ >   long str_len; /* XXX THIS IS WRONG!! Use size_t instead. */
+ >   zend_parse_parameters(ZEND_NUM_ARGS(), "s", &str, &str_len)
+ >
+ > 2)
+ >   int num; /* XXX THIS IS WRONG!! Use zend_long instead. */
+ >   zend_parse_parameters(ZEND_NUM_ARGS(), "l", &num)
+ .
+ To fix this, I changed the types accordingly
+ to use size_t and zend_long
+ if the PHP major version is >= 7.
+Origin: upstream, https://github.com/unbit/uwsgi/commit/f8b4c28
+Author: aszlig <aszlig@nix.build>
+Bug: https://github.com/unbit/uwsgi/issues/2108
+Forwarded: yes
+Last-Update: 2020-01-23
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/plugins/php/php_plugin.c
++++ b/plugins/php/php_plugin.c
+@@ -4,6 +4,14 @@
+ 
+ static sapi_module_struct uwsgi_sapi_module;
+ 
++#ifdef UWSGI_PHP7
++typedef size_t php_strlen_size;
++typedef zend_long php_long_size;
++#else
++typedef int php_strlen_size;
++typedef uint64_t php_long_size;
++#endif
++
+ struct uwsgi_php {
+ 	struct uwsgi_string_list *allowed_docroot;
+ 	struct uwsgi_string_list *allowed_ext;
+@@ -285,9 +293,9 @@
+ PHP_FUNCTION(uwsgi_cache_exists) {
+ 
+         char *key = NULL;
+-        int keylen = 0;
++        php_strlen_size keylen = 0;
+         char *cache = NULL;
+-        int cachelen = 0;
++        php_strlen_size cachelen = 0;
+ 
+         if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &key, &keylen, &cache, &cachelen) == FAILURE) {
+                 RETURN_NULL();
+@@ -303,7 +311,7 @@
+ PHP_FUNCTION(uwsgi_cache_clear) {
+ 
+         char *cache = NULL;
+-        int cachelen = 0;
++        php_strlen_size cachelen = 0;
+ 
+         if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &cache, &cachelen) == FAILURE) {
+                 RETURN_NULL();
+@@ -318,11 +326,11 @@
+ 
+ 
+ PHP_FUNCTION(uwsgi_cache_del) {
+-	
++
+ 	char *key = NULL;
+-        int keylen = 0;
++	php_strlen_size keylen = 0;
+ 	char *cache = NULL;
+-	int cachelen = 0;
++	php_strlen_size cachelen = 0;
+ 
+         if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &key, &keylen, &cache, &cachelen) == FAILURE) {
+                 RETURN_NULL();
+@@ -338,9 +346,9 @@
+ PHP_FUNCTION(uwsgi_cache_get) {
+ 
+ 	char *key = NULL;
+-	int keylen = 0;
++	php_strlen_size keylen = 0;
+ 	char *cache = NULL;
+-	int cachelen = 0;
++	php_strlen_size cachelen = 0;
+ 	uint64_t valsize;
+ 
+ 	if (!uwsgi.caches)
+@@ -365,12 +373,12 @@
+ 
+ PHP_FUNCTION(uwsgi_cache_set) {
+ 	char *key = NULL;	
+-	int keylen;
++	php_strlen_size keylen = 0;
+ 	char *value = NULL;
+-	int vallen;
+-	uint64_t expires = 0;
++	php_strlen_size vallen = 0;
++	php_long_size expires = 0;
+ 	char *cache = NULL;
+-	int cachelen = 0;
++	php_strlen_size cachelen = 0;
+ 
+ 	if (!uwsgi.caches)
+ 		RETURN_NULL();
+@@ -388,12 +396,12 @@
+ 
+ PHP_FUNCTION(uwsgi_cache_update) {
+         char *key = NULL;
+-        int keylen;
++        php_strlen_size keylen = 0;
+         char *value = NULL;
+-        int vallen;
+-        uint64_t expires = 0;
++        php_strlen_size vallen = 0;
++        php_long_size expires = 0;
+         char *cache = NULL;
+-        int cachelen = 0;
++        php_strlen_size cachelen = 0;
+ 
+         if (!uwsgi.caches)
+                 RETURN_NULL();

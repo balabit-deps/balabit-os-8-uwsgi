@@ -1,0 +1,19 @@
+Description: plugins/logsocket: always initialize ul->count
+ Otherwise in case there's no ul->data we segfault.
+Origin: upstream, https://github.com/unbit/uwsgi/commit/acf5142
+Author: Riccardo Magliocchetti <riccardo.magliocchetti@gmail.com>
+Bug: https://github.com/unbit/uwsgi/issues/2010
+Forwarded: yes
+Last-Update: 2019-08-14
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/plugins/logsocket/logsocket_plugin.c
++++ b/plugins/logsocket/logsocket_plugin.c
+@@ -43,6 +43,7 @@
+ 		else {
+ 			ul->msg.msg_iov = uwsgi_malloc(sizeof(struct iovec));
+ 			ul->msg.msg_iovlen = 1;
++			ul->count = 0;
+ 		}
+ 
+ 		if (comma) {

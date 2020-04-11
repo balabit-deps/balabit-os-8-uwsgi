@@ -1,0 +1,40 @@
+Description: php: Properly zero initialize zend_file_handle
+ In the [PHP bugtracker],
+ the stacktrace included a bogus pointer value
+ being passed to `_efree`.
+ The ASCII value of the pointer is "02.11.81"
+ which heavily pointed at usage of non-initialized data.
+ .
+   #1  0x00007f8fe07e9e96 in _efree (ptr=0x30322e31312e3831) at /data/work/php-src-php-7.4.0RC6/Zend/zend_alloc.c:2549
+ .
+ The solution is to use an open-coded version
+ of [zend_stream_init_filename()].
+ Maybe we could actually use the above helper,
+ but I'm not familiar enough with PHP/versions/compat,
+ so the proposed change seems safer.
+ .
+ [PHP bugtracker]: https://bugs.php.net/bug.php?id=78828
+
+ [zend_stream_init_filename()]: https://github.com/php/php-src/blob/bc6e4b6c574261188519a1e83ba49998ffbcb12b/Zend/zend_stream.c#L70
+Origin: upstream, https://github.com/unbit/uwsgi/commit/c4a2ad5
+Author: Arne Welzel <arne.welzel@gmail.com>
+Bug: https://github.com/unbit/uwsgi/issues/2096
+Bug-PHP: https://bugs.php.net/bug.php?id=78828
+Forwarded: yes
+Last-Update: 2019-12-09
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/plugins/php/php_plugin.c
++++ b/plugins/php/php_plugin.c
+@@ -1061,10 +1061,9 @@
+ 
+ 	SG(request_info).path_translated = wsgi_req->file;
+ 
++        memset(&file_handle, 0, sizeof(zend_file_handle));
+         file_handle.type = ZEND_HANDLE_FILENAME;
+         file_handle.filename = real_filename;
+-        file_handle.free_filename = 0;
+-        file_handle.opened_path = NULL;
+ 
+         if (php_request_startup(TSRMLS_C) == FAILURE) {
+ 		uwsgi_500(wsgi_req);

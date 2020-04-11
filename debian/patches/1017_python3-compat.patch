@@ -1,0 +1,986 @@
+Description: Python 3 compat
+Author: Thomas Goirand <zigo@debian.org>
+Forwarded: https://github.com/unbit/uwsgi/pull/2062
+Last-Update: 2020-02-27
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- uwsgi-2.0.18.orig/contrib/spoolqueue/tasks.py
++++ uwsgi-2.0.18/contrib/spoolqueue/tasks.py
+@@ -1,9 +1,11 @@
++from __future__ import print_function
++
+ from tasksconsumer import *
+ 
+ @queueconsumer('fast', 4)
+ def fast_queue(arguments):
+-    print "fast", arguments
++    print("fast", arguments)
+ 
+ @queueconsumer('slow')
+ def slow_queue(arguments):
+-    print "foobar", arguments
++    print("foobar", arguments)
+--- uwsgi-2.0.18.orig/contrib/spoolqueue/tasksconsumer.py
++++ uwsgi-2.0.18/contrib/spoolqueue/tasksconsumer.py
+@@ -1,7 +1,9 @@
+ from uwsgidecorators import *
+-import Queue
+ from threading import Thread
+ 
++from six.moves import queue
++
++
+ queues = {}
+ 
+ class queueconsumer(object):
+@@ -9,7 +11,7 @@ class queueconsumer(object):
+     def __init__(self, name, num=1, **kwargs):
+         self.name = name
+ 	self.num = num
+-        self.queue = Queue.Queue()
++        self.queue = queue.Queue()
+ 	self.threads = []
+ 	self.func = None
+ 	queues[self.name] = self
+@@ -19,7 +21,7 @@ class queueconsumer(object):
+     def consumer(self):
+         while True:
+ 	    req = self.queue.get()
+-            print req
++            print(req)
+ 	    self.func(req)
+ 	    self.queue.task_done()
+ 
+--- uwsgi-2.0.18.orig/contrib/twuwsgi.py
++++ uwsgi-2.0.18/contrib/twuwsgi.py
+@@ -39,7 +39,7 @@ class uWSGIClientProtocol(basic.LineRece
+ 	return struct.pack('<H',len(key)) + key + struct.pack('<H',len(value)) + value
+ 
+     def connectionMade(self):
+-	print self.request.__dict__
++	print(self.request.__dict__)
+ 	# reset response parser
+ 	self.status_parsed = None
+ 	# build header and vars
+--- uwsgi-2.0.18.orig/contrib/uwsgi-cache-monitor.py
++++ uwsgi-2.0.18/contrib/uwsgi-cache-monitor.py
+@@ -1,3 +1,5 @@
++from __future__ import print_function
++
+ import mmap
+ import os
+ import struct
+@@ -85,20 +87,20 @@ class Cache:
+ 
+     def show_dump(self):
+         d = self.dump()
+-        print
+-        print "Recorded %d samples (%d second(s) sleep between samples)" % \
+-            (d['samples'], d['sample_sleep'])
+-        print "Cache empty %d times, full %d times, %.2f items on average" % \
+-            (d['cache_empty'], d['cache_full'], d['cache_items'] / d['samples'])
+-        print "Block size average size: %d bytes" % \
+-            (d['block_sizes'] / d['cache_items'] * 8)
+-        print "Data in cache average: %d bytes" % \
+-            (d['block_sizes'] / d['samples'] * 8)
++        print()
++        print("Recorded %d samples (%d second(s) sleep between samples)" % \
++            (d['samples'], d['sample_sleep']))
++        print("Cache empty %d times, full %d times, %.2f items on average" % \
++            (d['cache_empty'], d['cache_full'], d['cache_items'] / d['samples']))
++        print("Block size average size: %d bytes" % \
++            (d['block_sizes'] / d['cache_items'] * 8))
++        print("Data in cache average: %d bytes" % \
++            (d['block_sizes'] / d['samples'] * 8))
+ 
+ def main(options):
+     cache = Cache(options.cache_store, options.cache_slots, options.block_size,
+         options.sleep_time)
+-    print "Recording..."
++    print("Recording...")
+     while True:
+         try:
+             data = cache.read()
+--- uwsgi-2.0.18.orig/examples/bootstrap5.py
++++ uwsgi-2.0.18/examples/bootstrap5.py
+@@ -1,3 +1,3 @@
+ import uwsgi
+ 
+-print uwsgi.extract("data://0")
++print(uwsgi.extract("data://0"))
+--- uwsgi-2.0.18.orig/examples/mjpeg_stream.py
++++ uwsgi-2.0.18/examples/mjpeg_stream.py
+@@ -18,7 +18,7 @@ def application(env, start_response):
+ 
+ 	while 1:
+ 		yield "Content-Type: image/jpeg\r\n\r\n"
+-		print os.system('screencapture -t jpg -m -T 1 screenshot.jpg')
++		print(os.system('screencapture -t jpg -m -T 1 screenshot.jpg'))
+ 		f = open('screenshot.jpg')
+                 yield env['wsgi.file_wrapper'](f)
+ 		yield "\r\n--%s\r\n" % boundary
+--- uwsgi-2.0.18.orig/examples/simple_app.py
++++ uwsgi-2.0.18/examples/simple_app.py
+@@ -8,14 +8,14 @@ def ciao():
+ 
+ def ciao2():
+     print("nuovo uwsgi_server")
+-    print os.getpid()
++    print(os.getpid())
+ 
+ counter = 0
+ 
+ #if uwsgi.load_plugin(0, 'plugins/example/example_plugin.so', 'ciao'):
+-#    print "example plugin loaded"
++#    print("example plugin loaded")
+ #else:
+-#    print "unable to load example plugin"
++#    print("unable to load example plugin")
+ 
+ #uwsgi.event_add(uwsgi.EVENT_FILE, "/tmp", ciao)
+ #uwsgi.event_add(uwsgi.EVENT_DNSSD, "_uwsgi._tcp", ciao2)
+--- uwsgi-2.0.18.orig/examples/simple_app_wsgi2.py
++++ uwsgi-2.0.18/examples/simple_app_wsgi2.py
+@@ -1,6 +1,9 @@
++from six.moves import range
++
++
+ 
+ def mygen(uri):
+-    for i in xrange(1,100):
++    for i in range(1,100):
+         yield "ciao %s<br/>" % uri
+ 
+ 
+--- uwsgi-2.0.18.orig/examples/taskqueue.py
++++ uwsgi-2.0.18/examples/taskqueue.py
+@@ -1,7 +1,9 @@
+-import Queue
+ from threading import Thread
+ import uwsgi
+ 
++from six.moves import queue
++
++
+ CONSUMERS = 4
+ 
+ def consumer(q):
+@@ -13,7 +15,7 @@ def consumer(q):
+ 
+ def spawn_consumers():
+     global q
+-    q = Queue.Queue()
++    q = queue.Queue()
+     for i in range(CONSUMERS):
+         t = Thread(target=consumer,args=(q,))
+         t.daemon = True
+--- uwsgi-2.0.18.orig/examples/uwsgirouter.py
++++ uwsgi-2.0.18/examples/uwsgirouter.py
+@@ -10,13 +10,13 @@ def application(env, start_response):
+ 
+ 	# has timed out ?
+ 	if env['x-wsgiorg.fdevent.timeout']:
+-		print "connection timed out !!!"
++		print("connection timed out !!!")
+ 		uwsgi.close(fd)
+ 		raise StopIteration
+ 
+ 	# connection refused ?
+ 	if not uwsgi.is_connected(fd):
+-		print "unable to connect"
++		print("unable to connect")
+ 		uwsgi.close(fd)
+ 		raise StopIteration
+ 	
+@@ -42,7 +42,7 @@ def application(env, start_response):
+ 			bufsize = min(cl, 4096)
+ 			yield uwsgi.wait_fd_read(input, 30)
+ 			if env['x-wsgiorg.fdevent.timeout']:
+-				print "connection timed out !!!"
++				print("connection timed out !!!")
+ 				uwsgi.close(fd)
+ 				raise StopIteration
+ 			body = uwsgi.recv(input, bufsize)
+@@ -58,7 +58,7 @@ def application(env, start_response):
+ 
+ 	# has timed out ?
+ 	if env['x-wsgiorg.fdevent.timeout']:
+-		print "connection timed out !!!"
++		print("connection timed out !!!")
+ 		uwsgi.close(fd)
+ 		raise StopIteration
+ 
+@@ -69,7 +69,7 @@ def application(env, start_response):
+ 		# wait for response
+ 		yield uwsgi.wait_fd_read(fd, 30)
+ 		if env['x-wsgiorg.fdevent.timeout']:
+-			print "connection timed out !!!"
++			print("connection timed out !!!")
+ 			uwsgi.close(fd)
+ 			raise StopIteration
+ 		data = uwsgi.recv(fd)
+--- uwsgi-2.0.18.orig/examples/uwsgirouter3.py
++++ uwsgi-2.0.18/examples/uwsgirouter3.py
+@@ -8,10 +8,10 @@ def application(e,s):
+ 	global current_node
+ 
+ 	nodes = uwsgi.cluster_nodes()
+-	print nodes
++	print(nodes)
+ 
+ 	if len(nodes) == 0:
+-		print "no cluster node available"
++		print("no cluster node available")
+ 		raise StopIteration
+ 
+ 	if current_node >= len(nodes):
+--- uwsgi-2.0.18.orig/examples/uwsgirouter4.py
++++ uwsgi-2.0.18/examples/uwsgirouter4.py
+@@ -4,10 +4,10 @@ import uwsgi
+ def application(e,s):
+ 
+ 	node = uwsgi.cluster_best_node()
+-	print node
++	print(node)
+ 
+ 	if not node:
+-		print "sorry node unavailable"
++		print("sorry node unavailable")
+ 		raise StopIteration
+ 
+ 	for part in uwsgi.send_message(node, 0, 0, e, 0, e['wsgi.input'].fileno(), uwsgi.cl()):
+--- uwsgi-2.0.18.orig/examples/uwsgistatus.py
++++ uwsgi-2.0.18/examples/uwsgistatus.py
+@@ -6,7 +6,7 @@ import os
+ 
+ 
+ def application(env, start_response):
+-    print env
++    print(env)
+     start_response('200 OK', [('Content-Type', 'text/html')])
+ 
+     yield '<h1>uWSGI %s status</h1>' % uwsgi.version
+@@ -50,11 +50,11 @@ def application(env, start_response):
+     yield '<h2>workers</h2>'
+ 
+     for w in workers:
+-        #print w
+-        #print w['running_time']
++        #print(w)
++        #print(w['running_time'])
+         if w is not None:
+             yield '<tr><td>'+ str(w['id']) +'</td><td>' + str(w['pid']) + '</td><td>' + str(w['pid']) + '</td><td>' + str(w['requests']) + '</td><td>' + str(w['running_time']) + '</td><td>' + str(w['vsz']) + '</td><td>' + str(w['rss']) + '</td></tr>'
+-            print w
++            print(w)
+ 
+     yield '</table>'
+ 
+--- uwsgi-2.0.18.orig/plugins/coroae/uwsgiplugin.py
++++ uwsgi-2.0.18/plugins/coroae/uwsgiplugin.py
+@@ -9,7 +9,7 @@ for p in search_paths:
+         coroapi = p
+ 
+ if not coroapi:
+-    print "unable to find the Coro perl module !!!"
++    print("unable to find the Coro perl module !!!")
+     sys.exit(1)
+ 
+ NAME='coroae'
+--- uwsgi-2.0.18.orig/plugins/pypy/pypy_setup.py
++++ uwsgi-2.0.18/plugins/pypy/pypy_setup.py
+@@ -329,7 +329,7 @@ def uwsgi_pypy_paste_loader(config):
+         from paste.script.util.logging_config import fileConfig
+         fileConfig(c)
+     except ImportError:
+-        print "PyPy WARNING: unable to load paste.script.util.logging_config"
++        print("PyPy WARNING: unable to load paste.script.util.logging_config")
+     from paste.deploy import loadapp
+     wsgi_application = loadapp('config:%s' % c)
+ 
+@@ -349,7 +349,7 @@ add an item to the pythonpath
+ def uwsgi_pypy_pythonpath(item):
+     path = ffi.string(item)
+     sys.path.append(path)
+-    print "added %s to pythonpath" % path
++    print("added %s to pythonpath" % path)
+ 
+ 
+ """
+@@ -921,8 +921,8 @@ uwsgi.set_user_harakiri(sec)
+ uwsgi.set_user_harakiri = lambda x: lib.set_user_harakiri(x)
+ 
+ 
+-print "Initialized PyPy with Python", sys.version
+-print "PyPy Home:", sys.prefix
++print("Initialized PyPy with Python", sys.version)
++print("PyPy Home:", sys.prefix)
+ 
+ 
+ """
+@@ -981,4 +981,4 @@ def uwsgi_pypy_setup_continulets():
+         raise Exception("pypy continulets require async mode !!!")
+     lib.uwsgi.schedule_to_main = uwsgi_pypy_continulet_switch
+     lib.uwsgi.schedule_to_req = uwsgi_pypy_continulet_schedule
+-    print "*** PyPy Continulets engine loaded ***"
++    print("*** PyPy Continulets engine loaded ***")
+--- uwsgi-2.0.18.orig/t/cachetest.py
++++ uwsgi-2.0.18/t/cachetest.py
+@@ -11,7 +11,7 @@ def gen_rand_n(max_n):
+ def gen_rand_s(size):
+     return ''.join( [ random.choice(string.letters) for i in range(size) ])
+ 
+-print 'filling cache...'
++print('filling cache...')
+ for i in range(0, 1000):
+    kl = gen_rand_n(200)
+    key = gen_rand_s(kl)
+@@ -20,14 +20,14 @@ for i in range(0, 1000):
+    items[key] = val
+    uwsgi.cache_set(key, val)
+ 
+-print 'checking cache...'
++print('checking cache...')
+ count = 0
+ for key in items.keys():
+     val = uwsgi.cache_get(key)
+     count += 1
+     if val != items[key]:
+-         print len(val), val
+-         print len(items[key]), items[key]
++         print(len(val), val)
++         print(len(items[key]), items[key])
+          raise Exception('CACHE TEST FAILED AFTER %d ITERATIONS !!!' % count)
+ 
+-print "TEST PASSED"
++print("TEST PASSED")
+--- uwsgi-2.0.18.orig/t/pypy/t_continulet1.py
++++ uwsgi-2.0.18/t/pypy/t_continulet1.py
+@@ -12,7 +12,7 @@ def application(e, sr):
+ 
+     # call suspend 10 times and yield some value
+     for i in range(0,10):
+-        print i
++        print(i)
+         uwsgi.suspend()
+         yield str(i)
+ 
+@@ -34,7 +34,7 @@ def application(e, sr):
+     finally:
+         uwsgi.close(fd)
+ 
+-    print "sleeping for 3 seconds..."
++    print("sleeping for 3 seconds...")
+     uwsgi.async_sleep(3)
+     uwsgi.suspend()
+     yield "done"
+--- uwsgi-2.0.18.orig/t/pypy/t_continulet2.py
++++ uwsgi-2.0.18/t/pypy/t_continulet2.py
+@@ -12,7 +12,7 @@ def application(e, sr):
+ 
+     # suspend 10 times and yield a value
+     for i in range(1,10):
+-        print i
++        print(i)
+         uwsgi.suspend()
+         yield str(i)
+ 
+@@ -41,7 +41,7 @@ def application(e, sr):
+         # always ensure sockets are closed
+         uwsgi.close(fd)
+ 
+-    print "sleeping for 3 seconds..."
++    print("sleeping for 3 seconds...")
+     uwsgi.async_sleep(3)
+     uwsgi.suspend()
+     yield "done"
+--- uwsgi-2.0.18.orig/t/sharedarea/bigranges.py
++++ uwsgi-2.0.18/t/sharedarea/bigranges.py
+@@ -4,12 +4,12 @@ import unittest
+ class SharedareaTest(unittest.TestCase):
+ 
+     def test_32(self):
+-        pos = 2L * (1024L ** 3)
++        pos = 2 * (1024 ** 3)
+         uwsgi.sharedarea_write32(0, pos, 17)
+         self.assertEqual(uwsgi.sharedarea_read32(0, pos), 17)
+ 
+     def test_64(self):
+-        pos = 2L * (1024L ** 3)
++        pos = 2 * (1024 ** 3)
+         uwsgi.sharedarea_write64(0, pos, 30)
+         self.assertEqual(uwsgi.sharedarea_read64(0, pos), 30)
+ 
+--- uwsgi-2.0.18.orig/tests/cpubound_stackless.py
++++ uwsgi-2.0.18/tests/cpubound_stackless.py
+@@ -3,12 +3,12 @@ import stackless
+ 
+ def application(env, start_response):
+ 	start_response( '200 OK', [ ('Content-Type','text/html') ])
+-	#print env
++	#print(env)
+ 	for i in range(1,100000):
+-		#print i
++		#print(i)
+ 		yield "<h1>%s at %s</h1>\n" % (i, str(time.time()))
+ 		#schedule every 2
+ 		if i % 2 == 0:
+ 			stackless.schedule()
+ 
+-	print "DONE AT %d" % i
++	print("DONE AT %d" % i)
+--- uwsgi-2.0.18.orig/tests/decoratortest.py
++++ uwsgi-2.0.18/tests/decoratortest.py
+@@ -8,6 +8,9 @@ from uwsgicc import app as application
+ import time
+ 
+ 
++from six.moves import range
++
++
+ # register rpc function helloworld
+ @rpc("helloworld")
+ def hello2():
+@@ -43,7 +46,7 @@ def tmpmodified(num):
+ # spool a long running task
+ @spool
+ def a_long_task(args):
+-    for i in xrange(1,10):
++    for i in range(1,10):
+         print("%s = %d" % ( str(args), i))
+         print(uwsgi.call('helloworld'))
+         time.sleep(1)
+@@ -51,7 +54,7 @@ def a_long_task(args):
+ # continuosly spool a long running task
+ @spoolforever
+ def an_infinite_task(args):
+-    for i in xrange(1,4):
++    for i in range(1,4):
+         print("infinite: %d %s" % (i, str(args)))
+         print(uwsgi.call('helloworld'))
+         uwsgi.signal(100)
+@@ -114,7 +117,7 @@ def fork_happened2():
+ @lock
+ def locked_func():
+     print("starting locked function on worker %d" % uwsgi.worker_id())
+-    for i in xrange(1, 5):
++    for i in range(1, 5):
+         time.sleep(1)
+         print("[locked %d] waiting..." % uwsgi.worker_id())
+     print("done with locked function on worker %d" % uwsgi.worker_id())
+--- uwsgi-2.0.18.orig/tests/gevent_spool.py
++++ uwsgi-2.0.18/tests/gevent_spool.py
+@@ -3,7 +3,7 @@ import gevent
+ 
+ @spool
+ def longtask(*args):
+-    print args
++    print(args)
+     return uwsgi.SPOOL_OK
+ 
+ def level2():
+--- uwsgi-2.0.18.orig/tests/grunter.py
++++ uwsgi-2.0.18/tests/grunter.py
+@@ -1,6 +1,9 @@
+ import uwsgi
+ import time
+ 
++from six.moves import range
++
++
+ def application(env, start_response):
+ 
+ 	start_response('200 Ok', [ ('Content-Type','text/html') ] )
+@@ -10,12 +13,12 @@ def application(env, start_response):
+ 	grunt = uwsgi.grunt()
+ 	
+ 	if grunt is None:
+-		print "worker %d detached" % uwsgi.worker_id()
++		print("worker %d detached" % uwsgi.worker_id())
+ 	else:
+ 		yield "And now i am the grunt with a fix worker id of %d<br/>" % uwsgi.worker_id()
+ 		time.sleep(2)
+ 		yield "Now, i will start a very slow task...<br/>"
+-		for i in xrange(1,10):
++		for i in range(1,10):
+ 			yield "waiting for %d seconds<br/>" % i
+ 			time.sleep(i)
+ 	
+--- uwsgi-2.0.18.orig/tests/iobound_async_unix.py
++++ uwsgi-2.0.18/tests/iobound_async_unix.py
+@@ -44,7 +44,7 @@ def application(env, start_response):
+ 		for r in send_request(env, s):
+ 			yield r
+ 	else:
+-		print c
++		print(c)
+ 		start_response( '500 Internal Server Error', [ ('Content-Type', 'text/plain')])
+ 		yield "Internal Server Error"
+ 
+--- uwsgi-2.0.18.orig/tests/mulefunc.py
++++ uwsgi-2.0.18/tests/mulefunc.py
+@@ -2,20 +2,20 @@ from uwsgidecorators import *
+ 
+ @timer(3, target='mule1')
+ def hello_timer(signum):
+-    print "3 seconds elapsed"
++    print("3 seconds elapsed")
+ 
+ 
+ @mulefunc
+ def conto_fino_a_dieci(uno, due, tre):
+-    print "MULE ID %d: conto_fino_a_dieci" % uwsgi.mule_id(),uno,due,tre
++    print("MULE ID %d: conto_fino_a_dieci" % uwsgi.mule_id(),uno,due,tre)
+ 
+ @mulefunc(2)
+ def conto_fino_a_venti(uno, due, tre):
+-    print "MULE ID %d: conto_fino_a_venti" % uwsgi.mule_id(),uno,due,tre
++    print("MULE ID %d: conto_fino_a_venti" % uwsgi.mule_id(),uno,due,tre)
+ 
+ @mulefunc('topogigio')
+ def conto_fino_a_trenta(uno, due, tre):
+-    print "MULE ID %d: conto_fino_a_trenta" % uwsgi.mule_id(),uno,due,tre
++    print("MULE ID %d: conto_fino_a_trenta" % uwsgi.mule_id(),uno,due,tre)
+ 
+ 
+ 
+--- uwsgi-2.0.18.orig/tests/myadmin.py
++++ uwsgi-2.0.18/tests/myadmin.py
+@@ -2,7 +2,7 @@ import uwsgi
+ import struct
+ import sys
+ 
+-print sys.argv
++print(sys.argv)
+ if len(sys.argv) == 3:
+ 	chunks = uwsgi.send_message(sys.argv[1], 10, int(sys.argv[2]), '')
+ 
+@@ -11,7 +11,7 @@ if len(sys.argv) == 3:
+ 	for chunk in chunks:
+     		pkt += chunk
+ 
+-	print "%d = %d" % (int(sys.argv[2]), struct.unpack("I", pkt)[0])
++	print("%d = %d" % (int(sys.argv[2]), struct.unpack("I", pkt)[0]))
+ elif len(sys.argv) == 4:
+ 	uwsgi.send_message(sys.argv[1], 10, int(sys.argv[2]), struct.pack("I", int(sys.argv[3])))
+ 
+--- uwsgi-2.0.18.orig/tests/pgbound_async.py
++++ uwsgi-2.0.18/tests/pgbound_async.py
+@@ -22,7 +22,7 @@ def application(env, start_response):
+         for i in pg_wait(connection, env, 3):
+                 yield i
+ 
+-        print "connected"
++        print("connected")
+         cursor = connection.cursor()
+ 
+         cursor.execute("SELECT * FROM foo")
+@@ -30,7 +30,7 @@ def application(env, start_response):
+         for i in pg_wait(cursor.connection, env, 3):
+                 yield i
+ 
+-        print "query result available"
++        print("query result available")
+ 
+         for record in cursor:
+                 yield str(record)
+--- uwsgi-2.0.18.orig/tests/picazzo.py
++++ uwsgi-2.0.18/tests/picazzo.py
+@@ -9,7 +9,7 @@ def login(req):
+   return "<form method='post'><input type='submit' name='foo' value='login' /></form>"
+ 
+ def login_post(req):
+-  print req
++  print(req)
+   req["session"]["user"] = "James"
+   return redirect("/")
+ 
+--- uwsgi-2.0.18.orig/tests/refcount.py
++++ uwsgi-2.0.18/tests/refcount.py
+@@ -2,5 +2,5 @@ import sys
+ 
+ def application(e, sr):
+     sr('200 OK', [('Content-Type','text/html')])
+-    print sys.gettotalrefcount()
++    print(sys.gettotalrefcount())
+     yield '%s' % sys.gettotalrefcount()
+--- uwsgi-2.0.18.orig/tests/rpc.py
++++ uwsgi-2.0.18/tests/rpc.py
+@@ -4,7 +4,7 @@ import uwsgi
+ def hello():
+     return "Hello World"
+ 
+-print uwsgi.register_rpc("hello", hello)
++print(uwsgi.register_rpc("hello", hello))
+ 
+ 
+-print uwsgi.rpc(None, "hello")
++print(uwsgi.rpc(None, "hello"))
+--- uwsgi-2.0.18.orig/tests/runningthread.py
++++ uwsgi-2.0.18/tests/runningthread.py
+@@ -4,7 +4,7 @@ import uwsgi
+ 
+ def mess():
+     while True:
+-        for i in xrange(0, 100):
++        for i in range(0, 100):
+             if uwsgi.ready():
+                 uwsgi.signal(17)
+             print(i)
+--- uwsgi-2.0.18.orig/tests/sendchunked.py
++++ uwsgi-2.0.18/tests/sendchunked.py
+@@ -1,6 +1,9 @@
+ import socket
+ import sys
+ 
++from six.moves import input
++
++
+ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+ 
+ (addr, port) = sys.argv[1].split(':')
+@@ -10,5 +13,5 @@ s.send("POST /send HTTP/1.1\r\n")
+ s.send("Transfer-Encoding: chunked\r\n\r\n")
+ 
+ while True:
+-    msg = raw_input("msg >> ")
++    msg = input("msg >> ")
+     s.send("%X\r\n%s\r\n" % (len(msg), msg))
+--- uwsgi-2.0.18.orig/tests/signals.py
++++ uwsgi-2.0.18/tests/signals.py
+@@ -2,16 +2,16 @@ import uwsgi
+ 
+ 
+ def hello_signal(num, payload):
+-	print "i am the signal %d" % num
++	print("i am the signal %d" % num)
+ 
+ def hello_signal2(num, payload):
+-	print "i am the signal %d with payload: %s" % (num, payload)
++	print("i am the signal %d with payload: %s" % (num, payload))
+ 
+ def hello_file(num, filename):
+-	print "file %s has been modified !!!" % filename
++	print("file %s has been modified !!!" % filename)
+ 
+ def hello_timer(num, secs):
+-	print "%s seconds elapsed" % secs
++	print("%s seconds elapsed" % secs)
+ 
+ #uwsgi.register_signal(30, uwsgi.SIGNAL_KIND_WORKER, hello_signal)
+ uwsgi.register_signal(30, "workers", hello_signal)
+--- uwsgi-2.0.18.orig/tests/sleeping_async.py
++++ uwsgi-2.0.18/tests/sleeping_async.py
+@@ -5,5 +5,5 @@ sleepvalue = 5
+ def application(env, start_response):
+     start_response('200 Ok', [('Content-type', 'text/html')])
+     yield uwsgi.async_sleep(sleepvalue)
+-    #print "TIMEOUT: ", env['x-wsgiorg.fdevent.timeout']
++    #print("TIMEOUT: ", env['x-wsgiorg.fdevent.timeout'])
+     yield "<h1>Hello World after %d seconds</h1>" % sleepvalue
+--- uwsgi-2.0.18.orig/tests/sleeping_green.py
++++ uwsgi-2.0.18/tests/sleeping_green.py
+@@ -4,11 +4,11 @@ import time
+ 
+ def application(env, start_response):
+     sleepvalue = 5
+-    if env.has_key('QUERY_STRING'):
++    if 'QUERY_STRING' in env:
+         if env['QUERY_STRING'] != '':
+             sleepvalue = int(env['QUERY_STRING'])
+         start_response('200 Ok', [('Content-type', 'text/html')])
+     start_at = time.time()
+     uwsgi.green_sleep(sleepvalue)
+-    #print "TIMEOUT: ", env['x-wsgiorg.fdevent.timeout']
++    #print("TIMEOUT: ", env['x-wsgiorg.fdevent.timeout'])
+     yield "<h1>Hello World after %s seconds</h1>" % str(time.time() - start_at)
+--- uwsgi-2.0.18.orig/tests/sleepthreadasync.py
++++ uwsgi-2.0.18/tests/sleepthreadasync.py
+@@ -5,7 +5,7 @@ import time
+ def foo():
+     while True:
+         time.sleep(1)
+-        print "ciao, sono un thread"
++        print("ciao, sono un thread")
+ 
+ t = threading.Thread(target=foo)
+ t.daemon=True
+--- uwsgi-2.0.18.orig/tests/slow.py
++++ uwsgi-2.0.18/tests/slow.py
+@@ -1,12 +1,12 @@
+ import time
+ import uwsgi
+ def application(e,s):
+-    print "locking"
++    print("locking")
+     uwsgi.lock()
+-    print "locked"
++    print("locked")
+     time.sleep(3)
+     uwsgi.unlock()
+-    print "UN-locked"
++    print("UN-locked")
+     s('200 OK', [('Content-Type','text/html')])
+     return "slow"
+ 
+--- uwsgi-2.0.18.orig/tests/testapp.py
++++ uwsgi-2.0.18/tests/testapp.py
+@@ -1,5 +1,6 @@
+ import uwsgi
+ 
++from six.moves import reload_module
+ import time
+ import sys
+ import os
+@@ -18,7 +19,7 @@ class testthread(Thread):
+     def run(self):
+         while 1:
+             time.sleep(2)
+-            print "i am a terrible python thread of the uWSGI master process", uwsgi.applications
++            print("i am a terrible python thread of the uWSGI master process", uwsgi.applications)
+ 
+ 
+ tthread = testthread()
+@@ -36,7 +37,7 @@ def mako(filename, vars):
+ #print uwsgi.send_uwsgi_message("127.0.0.1", 3033, 33, 17, ('makotest.txt', {'whattimeisit':time.time(), 'roberta':'serena'}), 17)
+ 
+ def myspooler(env):
+-    print env
++    print(env)
+     for i in range(1,100):
+         uwsgi.sharedarea_inclong(100)
+         #time.sleep(1)
+@@ -57,11 +58,11 @@ def force_harakiri():
+ 
+ 
+ def application(env, start_response):
+-    print env
++    print(env)
+     start_response('200 OK', [('Content-Type', 'text/plain')])
+     yield { '/': helloworld, '/sleep': force_harakiri, '/counter': increment, '/uwsgi/':helloworld }[env['PATH_INFO']]()
+ 
+-    print env
++    print(env)
+ 
+ def gomako():
+     from mako.template import Template
+@@ -81,12 +82,12 @@ def djangohomepage():
+     uwsgi.start_response('200 OK', [('Content-Type', 'text/html')])
+     t = Template("My name is {{ my_name }}.")
+     c = Context({"my_name": "Serena"})
+-    print t,c
++    print(t,c)
+     a = t.render(c)
+-    print "ciao", a
++    print("ciao", a)
+     yield str(a)
+ 
+-def reload(env, start_response):
++def reload_module(env, start_response):
+ 
+     start_response('200 OK', [('Content-Type', 'text/html')])
+ 
+@@ -97,7 +98,7 @@ def reload(env, start_response):
+ 
+ #    print str(uwsgi.masterpid()) + "\n"
+ 
+-#    print "i am python"
++#    print("i am python")
+     #yo()
+ 
+ #    yield "python"
+@@ -106,17 +107,17 @@ def reload(env, start_response):
+ 
+ #    yield str(uwsgi.masterpid())
+ 
+-    #print uwsgi.pippo
++    #print(uwsgi.pippo)
+ 
+     #print 4/0
+ #    try:
+ #        print 4/0
+ #
+-#        print uwsgi.pippo
++#        print(uwsgi.pippo)
+ #    except:
+-#        print "bah"
++#        print("bah")
+ 
+-#    print "ok"
++#    print("ok")
+ 
+ #    yield 4/0
+ 
+@@ -139,16 +140,16 @@ def reload(env, start_response):
+     yield '<h2>workers</h2>'
+ 
+     for w in workers:
+-        #print w
+-        #print w['running_time']
++        #print(w)
++        #print(w['running_time'])
+         if w is not None:
+             yield '<tr><td>'+ str(w['id']) +'</td><td>' + str(w['pid']) + '</td><td>' + str(w['pid']) + '</td><td>' + str(w['requests']) + '</td><td>' + str(w['running_time']) + '</td><td>' + str(w['vsz']) + '</td><td>' + str(w['rss']) + '</td></tr>'
+-            print w
++            print(w)
+ 
+     yield '</table>'
+ 
+     #yield out
+-    #print "FATTOfattoFATTO"
++    #print("FATTOfattoFATTO")
+ 
+ def remotemako(env, start_response):
+     start_response('200 OK', [('Content-Type', 'text/html')])
+@@ -158,9 +159,9 @@ def remotemako(env, start_response):
+             ('192.168.173.5', 3434, [9001, 12000] ),
+             ('192.168.173.5', 3435, [12001, 15000] )
+         );
+-    print clusters
++    print(clusters)
+     all_values = uwsgi.send_multi_uwsgi_message(clusters, 33, 17, 40);
+-    print all_values
++    print(all_values)
+     return mako('makotest.txt', {'whattimeisit':time.time(), 'roberta':'serena', 'cluster_values': all_values})
+ 
+ 
+@@ -173,5 +174,5 @@ uwsgi.fastfuncs.insert(17, djangohomepag
+ #applications = { '/':django.core.handlers.wsgi.WSGIHandler() }
+ uwsgi.applications = { '/':reload, '/pippo':reload }
+ 
+-print uwsgi.applications
+-print uwsgi.applist
++print(uwsgi.applications)
++print(uwsgi.applist)
+--- uwsgi-2.0.18.orig/tests/testgevent.py
++++ uwsgi-2.0.18/tests/testgevent.py
+@@ -5,19 +5,19 @@ import uwsgi
+ import time
+ 
+ def microtask(wid):
+-    print "i am a gevent task"
++    print("i am a gevent task")
+     gevent.sleep(10)
+-    print "10 seconds elapsed in worker id %d" % wid
++    print("10 seconds elapsed in worker id %d" % wid)
+ 
+ def athread():
+     while True:
+         time.sleep(1)
+-        print "i am the thread 1"
++        print("i am the thread 1")
+ 
+ def athread2():
+     while True:
+         time.sleep(1)
+-        print "i am the thread 2"
++        print("i am the thread 2")
+ 
+ t1 = Thread(target=athread)
+ t1.daemon = True
+--- uwsgi-2.0.18.orig/tests/threads.py
++++ uwsgi-2.0.18/tests/threads.py
+@@ -3,6 +3,9 @@ import threading
+ import time
+ import sys
+ 
++from six.moves import reload_module
++
++
+ def monitor1():
+ 	while 1:
+ 		time.sleep(1)
+@@ -18,7 +21,7 @@ def monitor3():
+ 	while 1:
+ 		time.sleep(5)
+ 		print("5 seconds elapsed")
+-		#reload(fake)
++		#reload_module(fake)
+     
+ def spawn_my_magic_threads():
+ 	print("^^^ spawning magic threads ^^^")
+--- uwsgi-2.0.18.orig/tests/ugevent.py
++++ uwsgi-2.0.18/tests/ugevent.py
+@@ -11,25 +11,25 @@ else:
+ 
+ @signal(17)
+ def hello(signum):
+-    print "hello i am signal %d, i am here because the background job is finished" % signum
++    print("hello i am signal %d, i am here because the background job is finished" % signum)
+     if REFCNT:
+-        print sys.gettotalrefcount()
++        print(sys.gettotalrefcount())
+ 
+ @timer(10)
+ def ten_seconds(signum):
+-    print "10 seconds elapsed, signal %d raised" % signum
++    print("10 seconds elapsed, signal %d raised" % signum)
+     if REFCNT:
+-        print sys.gettotalrefcount()
++        print(sys.gettotalrefcount())
+ 
+ @filemon('/tmp')
+ def tmp_modified(signum):
+-    print "/tmp has been touched, i am the greenlet %s running on worker %d" % (gevent.getcurrent(), uwsgi.worker_id())
++    print("/tmp has been touched, i am the greenlet %s running on worker %d" % (gevent.getcurrent(), uwsgi.worker_id()))
+     if REFCNT:
+-        print sys.gettotalrefcount()
++        print(sys.gettotalrefcount())
+ 
+ def bg_task():
+     for i in range(1,10):
+-        print "background task", i
++        print("background task", i)
+         gevent.sleep(1)
+ 
+     # task ended raise a signal !!!
+@@ -37,7 +37,7 @@ def bg_task():
+ 
+ def long_task():
+     for i in range(1,10):
+-        print i
++        print(i)
+         gevent.sleep()
+ 
+ def application(e, sr):
+@@ -64,7 +64,7 @@ def application(e, sr):
+         yield "ip = %s<br/>" % j.value
+ 
+     if REFCNT:
+-        print sys.gettotalrefcount()
++        print(sys.gettotalrefcount())
+         yield "%d" % sys.gettotalrefcount()
+ 
+     # this task will goes on after request end
+--- uwsgi-2.0.18.orig/tests/websockets.py
++++ uwsgi-2.0.18/tests/websockets.py
+@@ -54,7 +54,7 @@ def application(env, sr):
+         """ % (ws_scheme, env['HTTP_HOST'])
+     elif env['PATH_INFO'] == '/foobar/':
+ 	uwsgi.websocket_handshake(env['HTTP_SEC_WEBSOCKET_KEY'], env.get('HTTP_ORIGIN', ''))
+-        print "websockets..."
++        print("websockets...")
+         while True:
+             msg = uwsgi.websocket_recv_nb()
+             if msg:
+--- uwsgi-2.0.18.orig/tests/websockets_chat.py
++++ uwsgi-2.0.18/tests/websockets_chat.py
+@@ -54,7 +54,7 @@ def application(env, sr):
+         return ""
+     elif env['PATH_INFO'] == '/foobar/':
+ 	uwsgi.websocket_handshake(env['HTTP_SEC_WEBSOCKET_KEY'], env.get('HTTP_ORIGIN', ''))
+-        print "websockets..."
++        print("websockets...")
+         r = redis.StrictRedis(host='localhost', port=6379, db=0)
+         channel = r.pubsub()
+         channel.subscribe('foobar')
+--- uwsgi-2.0.18.orig/tests/websockets_echo.py
++++ uwsgi-2.0.18/tests/websockets_echo.py
+@@ -50,7 +50,7 @@ def application(env, sr):
+         """ % (ws_scheme, env['HTTP_HOST'])
+     elif env['PATH_INFO'] == '/foobar/':
+         uwsgi.websocket_handshake(env['HTTP_SEC_WEBSOCKET_KEY'], env.get('HTTP_ORIGIN', ''))
+-        print "websockets..."
++        print("websockets...")
+         while True:
+             msg = uwsgi.websocket_recv()
+             uwsgi.websocket_send("[%s] %s" % (time.time(), msg))

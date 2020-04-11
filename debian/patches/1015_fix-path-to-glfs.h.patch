@@ -1,0 +1,15 @@
+Description: Fix path to glfs.h
+Author: Salvatore Bonaccorso <carnil@debian.org>
+Bug-Debian: https://bugs.debian.org/894624
+Forwarded: no
+Last-Update: 2018-05-13
+
+--- a/plugins/glusterfs/glusterfs.c
++++ b/plugins/glusterfs/glusterfs.c
+@@ -1,5 +1,5 @@
+ #include <uwsgi.h>
+-#include <api/glfs.h>
++#include <glusterfs/api/glfs.h>
+ 
+ extern struct uwsgi_server uwsgi;
+ 

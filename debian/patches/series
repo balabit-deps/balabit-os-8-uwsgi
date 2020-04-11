@@ -1,0 +1,15 @@
+020170920~7cf140a.patch
+020190512~acf5142.patch
+020191208~c4a2ad5.patch
+020191214~f8b4c28.patch
+1001_avoid_setting_RPATH.patch
+1002_fix-reload-process-name.patch
+1003_remove-php-libs.patch
+1004_fix-php-ldflags.patch
+1005_avoid_auto_ptr.patch
+1006_avoid_xml2-config.patch
+1009_fix_java_paths.patch
+1010_support_java_pass_includes.patch
+1015_fix-path-to-glfs.h.patch
+1016_readline.patch
+1017_python3-compat.patch

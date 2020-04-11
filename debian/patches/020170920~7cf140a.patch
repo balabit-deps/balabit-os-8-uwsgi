@@ -1,0 +1,33 @@
+Description: for php7 return failures only on failure
+ Leads to PHP application failing to initialize PHP sessions.
+Origin: upstream, https://github.com/unbit/uwsgi/commit/7cf140a
+Author: Krzysztof Warzecha <kwarzecha7@gmail.com>
+Bug: https://github.com/unbit/uwsgi/issues/2048
+Forwarded: yes
+Last-Update: 2019-08-14
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/plugins/php/session.c
++++ b/plugins/php/session.c
+@@ -17,7 +17,10 @@
+ #else
+ 	char *value = uwsgi_cache_magic_get((char *)key, strlen((char *)key), &valsize, NULL, cache);
+ #endif
+-        if (!value) return FAILURE;
++	if (!value) {
++		*val = STR_EMPTY_ALLOC();
++		return SUCCESS;
++	}
+ #ifdef UWSGI_PHP7
+ 	*val = zend_string_init(value, valsize, 0);
+ #else
+@@ -48,6 +51,9 @@
+ PS_DESTROY_FUNC(uwsgi) {
+ 	char *cache = PS_GET_MOD_DATA();
+ #ifdef UWSGI_PHP7
++	if (!uwsgi_cache_magic_exists(key->val, key->len, cache))
++		return SUCCESS;
++
+ 	if (!uwsgi_cache_magic_del(key->val, key->len, cache)) {
+ #else
+ 	if (!uwsgi_cache_magic_del((char *)key, strlen(key), cache)) {
